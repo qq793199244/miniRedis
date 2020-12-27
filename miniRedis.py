@@ -45,6 +45,7 @@ def decode(s):
 
 class ProtocolHandler(object):
     def __init__(self):
+        # 网络中以字节传播，前面写b
         self.handlers = {
             b'+': self.handle_simple_string,
             b'-': self.handle_error,
