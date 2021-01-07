@@ -5,9 +5,20 @@ from collections import namedtuple
 from io import BytesIO
 from socket import error as socket_error
 import sys
+import pickle
+import os
+import time
+import logging
+
+now = time.strftime("%Y-%m-%d-%H_%M_%S", time.localtime(time.time()))
+path = './saved_files/'
+if not os.path.exists(path):
+    os.mkdir(path)
+
+FILE_NAME = path + now + "_save_to_disk.pkl"
 
 
-# We'll use exceptions to notify the connection-handling loop of problems.
+# 用异常通知连接处理中的问题
 class CommandError(Exception):
     def __init__(self, message):
         self.message = message
@@ -56,17 +67,17 @@ class ProtocolHandler(object):
         }
 
     def handle_request(self, socket_file):
-        # Parse a request from the client into it's component parts.
         # 将来自客户端的请求解析为它的组件部分。
         first_byte = socket_file.read(1)
         if not first_byte:
-            raise Disconnect()
+            raise EOFError()
 
         try:
             # 根据第一个字节委托给适当的处理程序。
             return self.handlers[first_byte](socket_file)
         except KeyError:
-            raise CommandError('bad request')
+            rest = socket_file.readline().rstrip(b'\r\n')
+            return first_byte + rest
 
     def handle_simple_string(self, socket_file):
         return socket_file.readline().rstrip(b'\r\n')
@@ -94,9 +105,9 @@ class ProtocolHandler(object):
                     for _ in range(num_items * 2)]
         return dict(zip(elements[::2], elements[1::2]))
 
-    # 对于协议的序列化方面，我们将执行与上述相反的操作：将Python对象转换为其序列化的对象！
+    # 对于协议的序列化方面，执行与上述相反的操作：将Python对象转换为其序列化的对象！
     def write_response(self, socket_file, data):
-        # Serialize the response data and send it to the client.
+        # 序列化响应数据，并将它发送给客户端
         buf = BytesIO()
         self._write(buf, data)
         buf.seek(0)
@@ -128,6 +139,14 @@ class ProtocolHandler(object):
             raise CommandError('unrecognized type: %s' % type(data))
 
 
+class ClientQuit(Exception):
+    pass
+
+
+class Shutdown(Exception):
+    pass
+
+
 class Server(object):
     def __init__(self, host='127.0.0.1', port=33333, max_clients=64):
         self._pool = Pool(max_clients)
@@ -140,6 +159,7 @@ class Server(object):
         self._kv = {}
 
         self._commands = self.get_commands()
+        self._schedule = []
 
     def get_commands(self):
         return {
@@ -148,12 +168,16 @@ class Server(object):
             b'DELETE': self.delete,
             b'FLUSH': self.flush,
             b'MGET': self.mget,
-            b'MSET': self.mset
+            b'MSET': self.mset,
+            b'SAVE': self.save_to_disk,
+            b'RESTORE': self.restore_from_disk,
+            b'MERGE': self.merge_from_disk,
+            b'QUIT': self.client_quit,
+            b'SHUTDOWN': self.shutdown,
         }
 
     def get_response(self, data):
-        # Here we'll actually unpack the data sent by the client, execute the
-        # command they specified, and pass back the return value.
+        # 解压客户端发送的数据，执行它们指定的命令，并传回返回值
         if not isinstance(data, list):
             try:
                 data = data.split()
@@ -166,8 +190,49 @@ class Server(object):
         command = data[0].upper()
         if command not in self._commands:
             raise CommandError('Unrecognized command: %s' % command)
-        # ------------------------------------------------------这里*data[1:]不懂
         return self._commands[command](*data[1:])
+
+    def _get_state(self):
+        return {'kv': self._kv, 'schedule': self._schedule}
+
+    def _set_state(self, state, merge=False):
+        if not merge:
+            self._kv = state['kv']
+            self._schedule = state['schedule']
+        else:
+            def merge(orig, updates):
+                orig.update(updates)
+                return orig
+
+            self._kv = merge(state['kv'], self._kv)
+            self._schedule = state['schedule']
+
+    # 持久化，保存到磁盘
+    def save_to_disk(self):
+        filename = FILE_NAME
+        with open(filename, 'wb') as fh:
+            pickle.dump(self._get_state(), fh, pickle.HIGHEST_PROTOCOL)
+        print('已保存到磁盘。')
+        return True
+
+    # 从磁盘恢复
+    def restore_from_disk(self, filename, merge=False):
+        if not os.path.exists(filename):
+            return False
+        with open(filename, 'rb') as fh:
+            state = pickle.load(fh)
+        self._set_state(state, merge=merge)
+        return True
+
+    # 从磁盘合并
+    def merge_from_disk(self, filename):
+        return self.restore_from_disk(filename, merge=True)
+
+    def client_quit(self):
+        raise ClientQuit('客户端关闭连接。')
+
+    def shutdown(self):
+        raise Shutdown('Shutting down')
 
     def get(self, key):
         return self._kv.get(key)
@@ -196,15 +261,25 @@ class Server(object):
             self._kv[key] = value
         return len(data)
 
+    def quit(self):
+        pass
+
     def connection_handler(self, conn, address):
-        # Convert "conn" (a socket object) into a file-like object.
+        # 将conn（套接字对象）转换为类文件的对象
         socket_file = conn.makefile('rwb')
 
-        # Process client requests until client disconnects.
+        # 处理客户端请求，直到客户端断开连接
         while True:
             try:
                 data = self._protocol.handle_request(socket_file)
             except Disconnect:
+                break
+            except EOFError:
+                socket_file.close()
+                print('客户端关闭连接。')
+                break
+            except ClientQuit:
+                print('客户端关闭连接。')
                 break
 
             try:
@@ -232,7 +307,31 @@ class Client(object):
             raise CommandError(resp.message)
         return resp
 
-    def get(self, key):
+    def command(cmd):
+        def method(self, *args):
+            return self.execute(cmd.encode('utf-8'), *args)
+
+        return method
+
+    # def close(self):
+    #     self.execute(b'QUIT')
+
+    # 操作命令
+    get = command('GET')
+    set = command('SET')
+    delete = command('DELETE')
+    flush = command('FLUSH')
+    mget = command('MGET')
+    mset = command('MSET')
+
+    # 控制命令
+    save = command('SAVE')
+    restore = command('RESTORE')
+    merge = command('MERGE')
+    quit = command('QUIT')
+    shutdown = command('SHUTDOWN')
+
+    '''def get(self, key):
         return self.execute(b'GET', key)
 
     def set(self, key, value):
@@ -248,7 +347,7 @@ class Client(object):
         return self.execute(b'MGET', *keys)
 
     def mset(self, *items):
-        return self.execute(b'MSET', *items)
+        return self.execute(b'MSET', *items)'''
 
 
 if __name__ == '__main__':
