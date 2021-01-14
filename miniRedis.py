@@ -86,7 +86,10 @@ class ProtocolHandler(object):
         return Error(socket_file.readline().rstrip(b'\r\n'))
 
     def handle_integer(self, socket_file):
-        return int(socket_file.readline().rstrip(b'\r\n'))
+        number = socket_file.readline().rstrip(b'\r\n')
+        if b'.' in number:
+            return float(number)
+        return int(number)
 
     def handle_string(self, socket_file):
         length = int(socket_file.readline().rstrip(b'\r\n'))
@@ -120,6 +123,8 @@ class ProtocolHandler(object):
 
         if isinstance(data, bytes):
             buf.write(b'$%d\r\n%s\r\n' % (len(data), data))
+        elif data is True or data is False:
+            buf.write(b':%d\r\n' % (1 if data else 0))
         elif isinstance(data, (int, float)):
             buf.write(b':%d\r\n' % data)
         elif isinstance(data, Error):
@@ -136,7 +141,7 @@ class ProtocolHandler(object):
         elif data is None:
             buf.write(b'$-1\r\n')
         else:
-            raise CommandError('unrecognized type: %s' % type(data))
+            raise CommandError('未能识别的类型： %s' % type(data))
 
 
 class ClientQuit(Exception):
@@ -313,8 +318,8 @@ class Client(object):
 
         return method
 
-    # def close(self):
-    #     self.execute(b'QUIT')
+    def close(self):
+        self.execute(b'QUIT')
 
     # 操作命令
     get = command('GET')
