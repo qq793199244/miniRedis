@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="aeef0c80-eda3-4ec9-8f88-9badc061f6dd" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/miniRedis.py" beforeDir="false" afterPath="$PROJECT_DIR$/miniRedis.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -69,6 +69,9 @@
       <workItem from="1610106235077" duration="2280000" />
       <workItem from="1610454291720" duration="1387000" />
       <workItem from="1610592520095" duration="135000" />
+      <workItem from="1622457498370" duration="60000" />
+      <workItem from="1623934706709" duration="312000" />
+      <workItem from="1624722095785" duration="61000" />
     </task>
     <servers />
   </component>
@@ -88,6 +91,6 @@
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/miniRedis$miniRedis.coverage" NAME="miniRedis Coverage Results" MODIFIED="1610592590306" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/miniRedis$miniRedis.coverage" NAME="miniRedis Coverage Results" MODIFIED="1623934716123" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

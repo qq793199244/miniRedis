@@ -212,7 +212,7 @@ class Server(object):
             self._kv = merge(state['kv'], self._kv)
             self._schedule = state['schedule']
 
-    # 持久化，保存到磁盘
+    # 持久化，保存到磁盘。类似于Redis的RDB持久化。
     def save_to_disk(self):
         filename = FILE_NAME
         with open(filename, 'wb') as fh:
