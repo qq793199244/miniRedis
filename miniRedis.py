@@ -253,9 +253,9 @@ class Server(object):
         return 0
 
     def flush(self):
-        kvlen = len(self._kv)
+        kv_len = len(self._kv)
         self._kv.clear()
-        return kvlen
+        return kv_len
 
     def mget(self, *keys):
         return [self._kv.get(key) for key in keys]
