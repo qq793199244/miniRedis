@@ -38,9 +38,9 @@ if sys.version_info[0] == 3:
 
 def encode(s):
     if isinstance(s, unicode):
-        return s.encode('utf-8')
-    elif isinstance(s, bytes):
         return s
+    elif isinstance(s, bytes):
+        return s.encode('utf-8')
     else:
         return str(s).encode('utf-8')
 
@@ -239,12 +239,22 @@ class Server(object):
     def shutdown(self):
         raise Shutdown('Shutting down')
 
+    # 操作
     def get(self, key):
         return self._kv.get(key)
 
     def set(self, key, value):
         self._kv[key] = value
         return 1
+
+    def mget(self, *keys):
+        return [self._kv.get(key) for key in keys]
+
+    def mset(self, *items):
+        data = list(zip(items[::2], items[1::2]))
+        for key, value in data:
+            self._kv[key] = value
+        return len(data)
 
     def delete(self, key):
         if key in self._kv:
@@ -256,15 +266,6 @@ class Server(object):
         kv_len = len(self._kv)
         self._kv.clear()
         return kv_len
-
-    def mget(self, *keys):
-        return [self._kv.get(key) for key in keys]
-
-    def mset(self, *items):
-        data = list(zip(items[::2], items[1::2]))
-        for key, value in data:
-            self._kv[key] = value
-        return len(data)
 
     def quit(self):
         pass
