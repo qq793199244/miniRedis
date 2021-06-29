@@ -108,7 +108,7 @@ class ProtocolHandler(object):
                     for _ in range(num_items * 2)]
         return dict(zip(elements[::2], elements[1::2]))
 
-    # 对于协议的序列化方面，执行与上述相反的操作：将Python对象转换为其序列化的对象！
+    # 对于协议的序列化方面，执行与上述相反的操作：将Python对象转换为其序列化的对象
     def write_response(self, socket_file, data):
         # 序列化响应数据，并将它发送给客户端
         buf = BytesIO()
@@ -148,7 +148,7 @@ class ClientQuit(Exception):
     pass
 
 
-class Shutdown(Exception):
+class Shutdown(CommandError):
     pass
 
 
@@ -237,7 +237,7 @@ class Server(object):
         raise ClientQuit('客户端关闭连接。')
 
     def shutdown(self):
-        raise Shutdown('Shutting down')
+        raise Shutdown('中断。')
 
     # 操作
     def get(self, key):
