@@ -302,6 +302,7 @@ class Server(object):
 class Client(object):
     def __init__(self, host='127.0.0.1', port=33333):
         self._protocol = ProtocolHandler()
+        # AF_INET 面向网络的； 为了创建 TCP套接字，必须使用 SOCK_STREAM 作为套接字类型。
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.connect((host, port))
         self._fh = self._socket.makefile('rwb')
